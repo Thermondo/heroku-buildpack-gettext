@@ -3,18 +3,50 @@
 
 set -e
 
-GETTEXT_TARBALL=http://fb_wanted.s3.amazonaws.com/bp/gettext.tar.gz
-TARGET_DIR=$HOME
 BUILD_DIR=$1
 CACHE_DIR=$2
+BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
 
-cd $BUILD_DIR
+GETTEXT_DEB="http://archive.ubuntu.com/ubuntu/pool/main/g/gettext/gettext_0.18.3.1-1ubuntu3_amd64.deb"
+GETTEXT_HOME=$BUILD_DIR/.gettext
+GETTEXT_CACHE=$CACHE_DIR/.gettext
 
-if [ -d $TARGET_DIR/gettext ]; then
-	echo "$PWD/gettext already installed"
-	exit 0
+PATH=$GETTEXT_HOME/bin:$PATH
+
+# Output helpers
+source $BIN_DIR/utils
+
+# Prepare the various paths
+mkdir -p $GETTEXT_HOME
+mkdir -p $GETTEXT_CACHE
+
+if [ "$(ls -A $GETTEXT_CACHE)" ]; then
+    cp -R $GETTEXT_CACHE/* $GETTEXT_HOME
 fi
 
-echo "-----> Installing gettext..."
-curl --silent --max-time 60 --location "$GETTEXT_TARBALL" | tar xz
-echo "-----> done in $TARGET_DIR/gettext"
+if [ ! `which msgfmt` ]; then
+    build-step "compiling gettext"
+
+    build-info "downloading"
+    d=$(mktemp -dt XXXX)
+    curl -s "$GETTEXT_DEB" -o "$d"/pkg.deb
+
+    build-info "unpacking and installing"
+    dpkg -x "$d"/pkg.deb "$d"
+    mkdir -p $GETTEXT_HOME/bin
+    mv "$d"/usr/bin/* $GETTEXT_HOME/bin
+fi
+
+build-step "cleanup"
+# Make sure the cache is empty
+rm -rf $GETTEXT_CACHE/*
+
+# Store a copy of it in the cache so it doesn't have to be fetched again
+cp -R $GETTEXT_HOME/* $GETTEXT_CACHE/
+
+# Check for an essential binary to make sure it's installed
+if [ ! `which msgfmt` ]; then
+    build-warn "Gettext installation failed"
+    exit 1
+fi
+
