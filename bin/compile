@@ -7,11 +7,12 @@ BUILD_DIR=$1
 CACHE_DIR=$2
 BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
 
-GETTEXT_DEB="http://archive.ubuntu.com/ubuntu/pool/main/g/gettext/gettext_0.18.3.1-1ubuntu3_amd64.deb"
+GETTEXT_TAR="http://ftp.gnu.org/pub/gnu/gettext/gettext-0.18.3.1.tar.gz"
 GETTEXT_HOME=$BUILD_DIR/.gettext
 GETTEXT_CACHE=$CACHE_DIR/.gettext
 
 PATH=$GETTEXT_HOME/bin:$PATH
+LD_LIBRARY_PATH=$GETTEXT_HOME/lib:$LD_LIBRARY_PATH
 
 # Output helpers
 source $BIN_DIR/utils
@@ -29,12 +30,21 @@ if [ ! `which msgfmt` ]; then
 
     build-info "downloading"
     d=$(mktemp -dt XXXX)
-    curl -s "$GETTEXT_DEB" -o "$d"/pkg.deb
+    curl -s "$GETTEXT_TAR" -o "$d"/pkg.tar.gz
 
     build-info "unpacking and installing"
-    dpkg -x "$d"/pkg.deb "$d"
-    mkdir -p $GETTEXT_HOME/bin
-    mv "$d"/usr/bin/* $GETTEXT_HOME/bin
+    cd $d
+    tar -xf pkg.tar.gz
+    cd gettext-0.18.3.1
+
+    build-info "configure"
+    ./configure --prefix=$GETTEXT_HOME --with-included-libunistring > /tmp/gettext_conf 2>&1
+
+    build-info "make"
+    make > /tmp/gettext_make 2>&1
+
+    build-info "make install"
+    make install > /tmp/gettext_makeinstall 2>&1
 fi
 
 build-step "cleanup"
@@ -50,3 +60,8 @@ if [ ! `which msgfmt` ]; then
     exit 1
 fi
 
+mkdir -p $BUILD_DIR/.profile.d
+cat <<EOF >$BUILD_DIR/.profile.d/gettext.sh
+export PATH=$HOME/.gettext/bin:$PATH
+export LD_LIBRARY_PATH=$HOME/.gettext/lib:$LD_LIBRARY_PATH
+EOF
