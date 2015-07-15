@@ -3,6 +3,5 @@
 
 cat <<EOF
 ---
-config_vars:
-PATH: $HOME/gettext/bin:$PATH
+default_process_types:
 EOF
