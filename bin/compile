@@ -7,23 +7,17 @@ BUILD_DIR=$1
 CACHE_DIR=$2
 BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
 
-GETTEXT_TAR="http://ftp.gnu.org/pub/gnu/gettext/gettext-0.18.3.1.tar.gz"
-GETTEXT_HOME=$BUILD_DIR/.gettext
+GETTEXT_TAR="http://ftp.gnu.org/pub/gnu/gettext/gettext-0.19.8.1.tar.gz"
 GETTEXT_CACHE=$CACHE_DIR/.gettext
 
-PATH=$GETTEXT_HOME/bin:$PATH
-LD_LIBRARY_PATH=$GETTEXT_HOME/lib:$LD_LIBRARY_PATH
+PATH=$GETTEXT_CACHE/bin:$PATH
+LD_LIBRARY_PATH=$GETTEXT_CACHE/lib:$LD_LIBRARY_PATH
 
 # Output helpers
 source $BIN_DIR/utils
 
 # Prepare the various paths
-mkdir -p $GETTEXT_HOME
 mkdir -p $GETTEXT_CACHE
-
-if [ "$(ls -A $GETTEXT_CACHE)" ]; then
-    cp -R $GETTEXT_CACHE/* $GETTEXT_HOME
-fi
 
 if [ ! `which msgfmt` ]; then
     build-step "compiling gettext"
@@ -35,10 +29,10 @@ if [ ! `which msgfmt` ]; then
     build-info "unpacking and installing"
     cd $d
     tar -xf pkg.tar.gz
-    cd gettext-0.18.3.1
+    cd gettext-0.19.8.1
 
     build-info "configure"
-    ./configure --prefix=$GETTEXT_HOME --with-included-libunistring > /tmp/gettext_conf 2>&1
+    ./configure --prefix=$GETTEXT_CACHE --with-included-libunistring > /tmp/gettext_conf 2>&1
 
     build-info "make"
     make > /tmp/gettext_make 2>&1
@@ -48,11 +42,6 @@ if [ ! `which msgfmt` ]; then
 fi
 
 build-step "cleanup"
-# Make sure the cache is empty
-rm -rf $GETTEXT_CACHE/*
-
-# Store a copy of it in the cache so it doesn't have to be fetched again
-cp -R $GETTEXT_HOME/* $GETTEXT_CACHE/
 
 # Check for an essential binary to make sure it's installed
 if [ ! `which msgfmt` ]; then
@@ -60,8 +49,5 @@ if [ ! `which msgfmt` ]; then
     exit 1
 fi
 
-mkdir -p $BUILD_DIR/.profile.d
-cat <<EOF >$BUILD_DIR/.profile.d/gettext.sh
-export PATH=$HOME/.gettext/bin:$PATH
-export LD_LIBRARY_PATH=$HOME/.gettext/lib:$LD_LIBRARY_PATH
-EOF
+build-step "run msgfmt"
+find $BUILD_DIR -name \*.po -execdir msgfmt django.po -o django.mo \;
