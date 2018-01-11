@@ -1,6 +1,7 @@
 heroku-buildpack-gettext
 ========================
 
-### Caveats
+### Discontinued
 
-Only supports cedar-14
+GNU gettext is now part of the heroku-16:build image, see
+https://github.com/heroku/stack-images/pull/90
